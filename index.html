@@ -180,21 +180,11 @@ function masteryLabel(card) {
   return ['Known', 'mastery-known'];
 }
 
-// ── Claude API ───────────────────────────────────────────────
+// ── Claude API (via Worker) ───────────────────────────────────
 async function fetchCardData(word) {
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      messages: [{ role: 'user', content: `For the word "${word}", respond with ONLY a JSON object (no markdown) in this exact format:
-{"definition":"A clear, concise definition in 1-2 sentences.","etymology":"Break down the word into its roots with meanings, e.g. 'con- (together) + vocare (to call)'. Then give one other common English word that shares a key root, e.g. 'Also in: convoke'."}` }]
-    })
-  });
-  const data = await resp.json();
-  const text = data.content.find(b => b.type==='text')?.text || '{}';
-  return JSON.parse(text.replace(/```json|```/g,'').trim());
+  const data = await apiPost('lookup', { word });
+  if (data.error) throw new Error(data.error);
+  return data;
 }
 
 // ── Add Words ────────────────────────────────────────────────
