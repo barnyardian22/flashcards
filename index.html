@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Vocab Flashcards</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f13; --surface: #1a1a24; --surface2: #24243a;
+    --border: #2e2e45; --accent: #7c6ff7; --accent2: #a78bfa;
+    --text: #e8e8f0; --muted: #8888aa;
+    --green: #4ade80; --yellow: #fbbf24; --red: #f87171;
+    --radius: 16px;
+  }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
+  nav { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); }
+  nav button { flex: 1; padding: 14px 8px; background: none; border: none; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; letter-spacing: .5px; text-transform: uppercase; }
+  nav button.active { color: var(--accent2); border-bottom: 2px solid var(--accent); }
+  .screen { display: none; padding: 20px; max-width: 540px; margin: 0 auto; }
+  .screen.active { display: block; }
+  .card-nav { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 14px; }
+  .card-nav button { background: var(--surface); border: 1px solid var(--border); color: var(--muted); width: 36px; height: 36px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .card-nav button:disabled { opacity: .3; cursor: default; }
+  .card-nav button:not(:disabled):hover { color: var(--text); border-color: var(--accent); }
+  .card-nav-pos { font-size: 13px; color: var(--muted); min-width: 60px; text-align: center; }
+  .card-wrap { perspective: 1000px; height: 320px; cursor: pointer; margin-bottom: 24px; }
+  .card { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform .5s cubic-bezier(.4,0,.2,1); }
+  .card.flipped { transform: rotateY(180deg); }
+  .card-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: var(--radius); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 28px; text-align: center; }
+  .card-front { background: var(--surface); border: 1px solid var(--border); }
+  .card-back { background: var(--surface2); border: 1px solid var(--accent); transform: rotateY(180deg); justify-content: flex-start; padding-top: 24px; overflow-y: auto; }
+  .remove-card-btn { position: absolute; top: 12px; left: 14px; background: none; border: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 4px 8px; border-radius: 8px; z-index: 2; }
+  .remove-card-btn:hover { color: var(--red); background: rgba(248,113,113,.1); }
+  .card-word { font-size: 36px; font-weight: 700; letter-spacing: -1px; }
+  .card-hint { margin-top: 12px; color: var(--muted); font-size: 13px; }
+  .card-mastery { margin-top: 14px; font-size: 12px; font-weight: 600; letter-spacing: .4px; padding: 4px 12px; border-radius: 20px; }
+  .mastery-new { background: rgba(136,136,170,.12); color: var(--muted); }
+  .mastery-learning { background: rgba(251,191,36,.12); color: var(--yellow); }
+  .mastery-familiar { background: rgba(124,111,247,.15); color: var(--accent2); }
+  .mastery-known { background: rgba(74,222,128,.12); color: var(--green); }
+  .card-back-word { font-size: 20px; font-weight: 700; color: var(--accent2); margin-bottom: 12px; }
+  .card-def { font-size: 16px; line-height: 1.6; margin-bottom: 14px; }
+  .card-etym { font-size: 13px; color: var(--accent2); background: rgba(124,111,247,.12); border-radius: 8px; padding: 8px 14px; line-height: 1.5; width: 100%; text-align: left; }
+  .card-etym-label { font-weight: 700; margin-right: 4px; }
+  .rate-btns { display: flex; gap: 12px; }
+  .rate-btn { flex: 1; padding: 16px 8px; border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; transition: transform .1s; }
+  .rate-btn:active { transform: scale(.96); }
+  .btn-no { background: rgba(248,113,113,.15); color: var(--red); border: 1px solid rgba(248,113,113,.3); }
+  .btn-maybe { background: rgba(251,191,36,.12); color: var(--yellow); border: 1px solid rgba(251,191,36,.3); }
+  .btn-yes { background: rgba(74,222,128,.12); color: var(--green); border: 1px solid rgba(74,222,128,.3); }
+  .done-state { text-align: center; padding: 60px 20px; }
+  .done-state h2 { font-size: 28px; margin-bottom: 10px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
+  textarea { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-size: 16px; padding: 14px; resize: vertical; min-height: 120px; outline: none; }
+  textarea:focus { border-color: var(--accent); }
+  .btn-primary { width: 100%; padding: 16px; background: var(--accent); border: none; border-radius: 12px; color: #fff; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 14px; }
+  .btn-primary:disabled { opacity: .5; cursor: default; }
+  .btn-secondary { width: 100%; padding: 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 10px; }
+  .btn-secondary:disabled { opacity: .5; cursor: default; }
+  .status { margin-top: 14px; font-size: 14px; color: var(--muted); min-height: 20px; text-align: center; }
+  .status.error { color: var(--red); }
+  .status.success { color: var(--green); }
+  .deck-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .deck-header h2 { font-size: 20px; font-weight: 700; }
+  .deck-count { font-size: 13px; color: var(--muted); }
+  .word-list { display: flex; flex-direction: column; gap: 10px; }
+  .word-item { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .word-item-text { flex: 1; }
+  .word-item-word { font-weight: 700; font-size: 16px; }
+  .word-item-def { font-size: 13px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+  .word-item-due { font-size: 11px; color: var(--accent2); margin-top: 4px; }
+  .btn-delete { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; padding: 2px 6px; border-radius: 6px; flex-shrink: 0; }
+  .btn-delete:hover { color: var(--red); }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty { text-align: center; padding: 48px 20px; color: var(--muted); }
+  .empty h3 { font-size: 18px; color: var(--text); margin-bottom: 8px; }
+  .loading-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; z-index: 100; }
+  .loading-overlay p { color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div id="loading-overlay" class="loading-overlay">
+  <div class="spinner" style="width:28px;height:28px;border-width:3px"></div>
+  <p>Loading your deck…</p>
+</div>
+
+<nav>
+  <button class="active" onclick="showScreen('study', event)">Study</button>
+  <button onclick="showScreen('add', event)">Add Words</button>
+  <button onclick="showScreen('deck', event)">My Deck</button>
+</nav>
+
+<div id="study" class="screen active"><div id="study-content"></div></div>
+<div id="add" class="screen">
+  <div style="margin-bottom:20px">
+    <label>Add Words</label>
+    <textarea id="word-input" placeholder="Enter one word per line&#10;&#10;e.g.&#10;ephemeral&#10;loquacious&#10;sycophant"></textarea>
+    <button class="btn-primary" id="add-btn" onclick="addWords()">Generate & Add Cards</button>
+    <button class="btn-secondary" id="sync-btn" onclick="syncSheet()">🔄 Fill Missing Definitions from Sheet</button>
+    <div class="status" id="add-status"></div>
+  </div>
+</div>
+<div id="deck" class="screen">
+  <div class="deck-header">
+    <h2>My Deck</h2>
+    <span class="deck-count" id="deck-count"></span>
+  </div>
+  <div id="word-list" class="word-list"></div>
+</div>
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────────
+const WORKER_URL = 'https://flashcards-proxy.2z5v4jv4f5.workers.dev';
+
+// ── Worker API ───────────────────────────────────────────────
+async function apiGet(action) {
+  const r = await fetch(`${WORKER_URL}?action=${action}`);
+  if (!r.ok) throw new Error(`Worker error: ${r.status}`);
+  return r.json();
+}
+
+async function apiPost(action, body) {
+  const r = await fetch(`${WORKER_URL}?action=${action}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error(`Worker error: ${r.status}`);
+  return r.json();
+}
+
+// ── Card helpers ─────────────────────────────────────────────
+function rowToCard(row) {
+  return {
+    word: row[0] || '',
+    definition: row[1] || '',
+    etymology: row[2] || '',
+    interval: parseFloat(row[3]) || 1,
+    ease: parseFloat(row[4]) || 2.5,
+    reps: parseInt(row[5]) || 0,
+    due: row[6] || today()
+  };
+}
+function cardToRow(c) {
+  return [c.word, c.definition, c.etymology, c.interval, c.ease, c.reps, c.due];
+}
+function today() { return new Date().toISOString().split('T')[0]; }
+function isDue(c) { return (c.due || today()) <= today(); }
+
+async function loadCards() {
+  const data = await apiGet('read');
+  if (!data.values || !data.values.length) return [];
+  return data.values.filter(r => r[0]).map(rowToCard);
+}
+async function saveAllCards(cards) {
+  await apiPost('saveAll', { rows: cards.map(cardToRow) });
+}
+async function appendCard(card) {
+  await apiPost('append', { rows: [cardToRow(card)] });
+}
+
+// ── SM-2 ─────────────────────────────────────────────────────
+function sm2(card, q) {
+  let { interval=1, ease=2.5, reps=0 } = card;
+  if (q >= 3) { reps === 0 ? interval=1 : reps === 1 ? interval=6 : interval=Math.round(interval*ease); reps++; }
+  else { reps=0; interval=1; }
+  ease = Math.max(1.3, ease + 0.1 - (5-q)*(0.08+(5-q)*0.02));
+  const d = new Date(); d.setDate(d.getDate()+interval);
+  return { ...card, interval, ease, reps, due: d.toISOString().split('T')[0] };
+}
+
+function masteryLabel(card) {
+  const r = card.reps || 0, i = card.interval || 1;
+  if (r === 0) return ['New', 'mastery-new'];
+  if (r <= 2) return ['Learning', 'mastery-learning'];
+  if (i < 21) return ['Familiar', 'mastery-familiar'];
+  return ['Known', 'mastery-known'];
+}
+
+// ── Claude API ───────────────────────────────────────────────
+async function fetchCardData(word) {
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: `For the word "${word}", respond with ONLY a JSON object (no markdown) in this exact format:
+{"definition":"A clear, concise definition in 1-2 sentences.","etymology":"Break down the word into its roots with meanings, e.g. 'con- (together) + vocare (to call)'. Then give one other common English word that shares a key root, e.g. 'Also in: convoke'."}` }]
+    })
+  });
+  const data = await resp.json();
+  const text = data.content.find(b => b.type==='text')?.text || '{}';
+  return JSON.parse(text.replace(/```json|```/g,'').trim());
+}
+
+// ── Add Words ────────────────────────────────────────────────
+async function addWords() {
+  const raw = document.getElementById('word-input').value.trim();
+  if (!raw) return;
+  const words = [...new Set(raw.split('\n').map(w=>w.trim()).filter(Boolean))];
+  const btn = document.getElementById('add-btn');
+  const status = document.getElementById('add-status');
+  btn.disabled = true;
+  let existing;
+  try { existing = await loadCards(); } catch(e) { status.textContent=`Failed to load deck: ${e.message}`; status.className='status error'; btn.disabled=false; return; }
+  const existingWords = new Set(existing.map(c=>c.word.toLowerCase()));
+  const newWords = words.filter(w=>!existingWords.has(w.toLowerCase()));
+  if (!newWords.length) { status.textContent='All words already in deck.'; status.className='status'; btn.disabled=false; return; }
+  let added = 0;
+  for (const word of newWords) {
+    status.innerHTML = `<span class="spinner"></span>Looking up "${word}" (${added+1}/${newWords.length})…`;
+    try {
+      const info = await fetchCardData(word);
+      await appendCard({ word, definition: info.definition, etymology: info.etymology, interval:1, ease:2.5, reps:0, due:today() });
+      added++;
+    } catch(e) { status.textContent=`Error on "${word}": ${e.message}`; status.className='status error'; btn.disabled=false; return; }
+  }
+  document.getElementById('word-input').value = '';
+  status.textContent = `✓ Added ${added} card${added!==1?'s':''}!`;
+  status.className = 'status success';
+  btn.disabled = false;
+}
+
+// ── Sync ─────────────────────────────────────────────────────
+async function syncSheet() {
+  const btn = document.getElementById('sync-btn');
+  const status = document.getElementById('add-status');
+  btn.disabled = true;
+  status.innerHTML = `<span class="spinner"></span>Reading sheet…`;
+  let cards;
+  try { cards = await loadCards(); }
+  catch(e) { status.textContent=`Failed to read sheet: ${e.message}`; status.className='status error'; btn.disabled=false; return; }
+  const missing = cards.filter(c => !c.definition || !c.etymology);
+  if (!missing.length) { status.textContent='✓ All cards already have definitions!'; status.className='status success'; btn.disabled=false; return; }
+  status.textContent = `Found ${missing.length} words to fill…`;
+  let filled = 0;
+  for (const card of missing) {
+    status.innerHTML = `<span class="spinner"></span>Looking up "${card.word}" (${filled+1}/${missing.length})…`;
+    try {
+      const info = await fetchCardData(card.word);
+      card.definition = info.definition;
+      card.etymology = info.etymology;
+      if (!card.interval) card.interval = 1;
+      if (!card.ease) card.ease = 2.5;
+      if (!card.reps) card.reps = 0;
+      if (!card.due) card.due = today();
+      filled++;
+    } catch(e) { status.textContent=`Error on "${card.word}": ${e.message}`; status.className='status error'; btn.disabled=false; return; }
+  }
+  try {
+    status.innerHTML = `<span class="spinner"></span>Saving to sheet…`;
+    await saveAllCards(cards);
+    status.textContent = `✓ Filled in ${filled} card${filled!==1?'s':''}!`;
+    status.className = 'status success';
+  } catch(e) { status.textContent=`Lookup done but save failed: ${e.message}`; status.className='status error'; }
+  btn.disabled = false;
+}
+
+// ── Study ─────────────────────────────────────────────────────
+let studyQueue=[], currentCard=null, flipped=false, studyIndex=0;
+
+async function initStudy() {
+  const el = document.getElementById('study-content');
+  el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted)"><span class="spinner" style="width:22px;height:22px;border-width:3px"></span></div>`;
+  try {
+    const cards = await loadCards();
+    studyQueue = cards.filter(isDue);
+    studyQueue.sort(() => Math.random() - .5);
+    studyIndex = 0;
+    renderStudy();
+  } catch(e) {
+    el.innerHTML = `<div class="done-state"><p style="color:var(--red)">Failed to load: ${e.message}</p></div>`;
+  }
+}
+
+function renderStudy() {
+  const el = document.getElementById('study-content');
+  if (!studyQueue.length) {
+    el.innerHTML=`<div class="done-state"><div style="font-size:48px;margin-bottom:12px">🎉</div><h2>All caught up!</h2><p style="margin-top:8px">No cards due right now.<br>Add more words or check back later.</p></div>`;
+    return;
+  }
+  currentCard = studyQueue[studyIndex];
+  flipped = false;
+  const [label,cls] = masteryLabel(currentCard);
+  const isFirst = studyIndex===0, isLast = studyIndex===studyQueue.length-1;
+  el.innerHTML=`
+    <div class="card-nav">
+      <button onclick="navCard(-1)" ${isFirst?'disabled':''}>‹</button>
+      <span class="card-nav-pos">${studyIndex+1} / ${studyQueue.length}</span>
+      <button onclick="navCard(1)" ${isLast?'disabled':''}>›</button>
+    </div>
+    <div class="card-wrap" onclick="flipCard()">
+      <div class="card" id="flashcard">
+        <div class="card-face card-front">
+          <button class="remove-card-btn" onclick="removeCurrentCard(event)">✕</button>
+          <div class="card-word">${currentCard.word}</div>
+          <div class="card-hint">Tap to reveal</div>
+          <div class="card-mastery ${cls}">${label}</div>
+        </div>
+        <div class="card-face card-back">
+          <div class="card-back-word">${currentCard.word}</div>
+          <div class="card-def">${currentCard.definition || '<em style="color:var(--muted)">No definition yet — run Sync</em>'}</div>
+          <div class="card-etym"><span class="card-etym-label">Roots:</span> ${currentCard.etymology || '—'}</div>
+        </div>
+      </div>
+    </div>
+    <div class="rate-btns" id="rate-btns" style="display:none">
+      <button class="rate-btn btn-no" onclick="rate(1)">✗<br><span style="font-size:11px;font-weight:400">Didn't know</span></button>
+      <button class="rate-btn btn-maybe" onclick="rate(3)">△<br><span style="font-size:11px;font-weight:400">Kinda knew</span></button>
+      <button class="rate-btn btn-yes" onclick="rate(5)">✓<br><span style="font-size:11px;font-weight:400">Knew it</span></button>
+    </div>`;
+}
+
+function navCard(dir) {
+  const next = studyIndex+dir;
+  if (next<0 || next>=studyQueue.length) return;
+  studyIndex=next; renderStudy();
+}
+
+function flipCard() {
+  const card = document.getElementById('flashcard');
+  if (!flipped) { flipped=true; card.classList.add('flipped'); setTimeout(()=>{ document.getElementById('rate-btns').style.display='flex'; },300); }
+  else { card.classList.remove('flipped'); flipped=false; document.getElementById('rate-btns').style.display='none'; }
+}
+
+async function rate(q) {
+  const cards = await loadCards();
+  const idx = cards.findIndex(c=>c.word.toLowerCase()===currentCard.word.toLowerCase());
+  if (idx>=0) { cards[idx]=sm2(cards[idx],q); await saveAllCards(cards); }
+  studyQueue.splice(studyIndex,1);
+  if (studyIndex>=studyQueue.length) studyIndex=Math.max(0,studyQueue.length-1);
+  renderStudy();
+}
+
+async function removeCurrentCard(e) {
+  e.stopPropagation();
+  const cards = await loadCards();
+  await saveAllCards(cards.filter(c=>c.word.toLowerCase()!==currentCard.word.toLowerCase()));
+  studyQueue.splice(studyIndex,1);
+  if (studyIndex>=studyQueue.length) studyIndex=Math.max(0,studyQueue.length-1);
+  renderStudy();
+}
+
+// ── Deck ─────────────────────────────────────────────────────
+async function initDeck() {
+  const el = document.getElementById('word-list');
+  el.innerHTML = `<div style="text-align:center;padding:40px"><span class="spinner" style="width:22px;height:22px;border-width:3px"></span></div>`;
+  try {
+    const cards = await loadCards();
+    document.getElementById('deck-count').textContent=`${cards.length} word${cards.length!==1?'s':''}`;
+    if (!cards.length) { el.innerHTML=`<div class="empty"><h3>No cards yet</h3><p>Head to "Add Words" to get started.</p></div>`; return; }
+    el.innerHTML=cards.map(c=>{
+      const due=c.due&&c.due>today()?`Next: ${c.due}`:`Due today`;
+      return `<div class="word-item">
+        <div class="word-item-text">
+          <div class="word-item-word">${c.word}</div>
+          <div class="word-item-def">${c.definition||'<em>No definition yet</em>'}</div>
+          <div class="word-item-due">${due} · ${c.reps||0} rep${c.reps!==1?'s':''}</div>
+        </div>
+        <button class="btn-delete" onclick="deleteCard(${JSON.stringify(c.word)})">✕</button>
+      </div>`;
+    }).join('');
+  } catch(e) { el.innerHTML=`<div class="empty"><h3 style="color:var(--red)">Failed to load</h3><p>${e.message}</p></div>`; }
+}
+
+async function deleteCard(word) {
+  const cards = await loadCards();
+  await saveAllCards(cards.filter(c=>c.word.toLowerCase()!==word.toLowerCase()));
+  initDeck();
+}
+
+// ── Nav ──────────────────────────────────────────────────────
+function showScreen(name, e) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById(name).classList.add('active');
+  if (e && e.target) e.target.classList.add('active');
+  if (name==='study') initStudy();
+  if (name==='deck') initDeck();
+}
+
+// ── Init ─────────────────────────────────────────────────────
+document.getElementById('loading-overlay').style.display = 'none';
+initStudy();
+</script>
+</body>
+</html>
